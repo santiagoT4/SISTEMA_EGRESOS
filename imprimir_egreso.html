@@ -1,0 +1,109 @@
+// ==================== FUNCIONES PARA IMPRESIÓN DE EGRESOS ====================
+
+function obtenerUrlImpresionEgreso(idEgreso) {
+  try {
+    console.log('🔗 Generando URL de impresión para egreso:', idEgreso);
+    
+    // Primero, obtener los datos del egreso
+    const resultado = obtenerDatosEgreso(idEgreso);
+    
+    if (!resultado.success) {
+      return { success: false, error: resultado.error };
+    }
+    
+    const data = resultado.data;
+    
+    // URL de tu GitHub Pages para imprimir egresos
+    const baseUrl = 'https://santiagot4.github.io/SISTEMA_EGRESOS/';
+    const urlImpresion = baseUrl + 'imprimir_egreso.html';
+    
+    const params = new URLSearchParams();
+    params.append('factura', data.factura);
+    params.append('fecha', data.fechaCobro);
+    params.append('cuentaDebitoCodigo', data.trabajadorCodigo);
+    params.append('cuentaDebitoNombre', data.trabajador);
+    params.append('cod1', data.cod1);
+    params.append('cod2', data.cod2);
+    params.append('cuentaCreditoCodigo', data.clienteID);
+    params.append('cuentaCreditoNombre', data.cliente);
+    params.append('monto', data.montoPagado.toString());
+    params.append('comentario', data.observaciones);
+    
+    const urlCompleta = urlImpresion + '?' + params.toString();
+    
+    console.log('✅ URL generada:', urlCompleta);
+    
+    return {
+      success: true,
+      url: urlCompleta
+    };
+    
+  } catch (error) {
+    console.error('❌ Error al generar URL:', error);
+    return { success: false, error: error.toString() };
+  }
+}
+
+function obtenerDatosEgreso(idEgreso) {
+  try {
+    console.log('🔍 Obteniendo datos del egreso:', idEgreso);
+    
+    const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+    const sheet = ss.getSheetByName('RegistrosCobros');
+    
+    if (!sheet) {
+      return { success: false, error: 'Hoja de registros no encontrada' };
+    }
+    
+    const data = sheet.getDataRange().getValues();
+    const headers = data[0];
+    
+    const idx = {
+      id: headers.indexOf('ID'),
+      fechaCobro: headers.indexOf('FechaCobro'),
+      trabajador: headers.indexOf('Trabajador'),
+      trabajadorCodigo: headers.indexOf('TrabajadorCodigo'),
+      factura: headers.indexOf('Factura'),
+      cliente: headers.indexOf('Cliente'),
+      clienteID: headers.indexOf('ClienteID'),
+      montoPagado: headers.indexOf('MontoPagado'),
+      observaciones: headers.indexOf('Observaciones'),
+      cod1: headers.indexOf('COD_1'),
+      cod2: headers.indexOf('COD_2'),
+      tipoOperacion: headers.indexOf('TipoOperacion')
+    };
+    
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][idx.id] === idEgreso) {
+        const tipo = String(data[i][idx.tipoOperacion] || '').trim().toUpperCase();
+        if (tipo !== 'EGRESO') {
+          return { success: false, error: 'Este registro no es un egreso' };
+        }
+        
+        return {
+          success: true,
+          data: {
+            id: data[i][idx.id] || '',
+            fechaCobro: data[i][idx.fechaCobro] || '',
+            trabajador: data[i][idx.trabajador] || '',
+            trabajadorCodigo: data[i][idx.trabajadorCodigo] || '',
+            factura: data[i][idx.factura] || '',
+            cliente: data[i][idx.cliente] || '',
+            clienteID: data[i][idx.clienteID] || '',
+            montoPagado: parseFloat(data[i][idx.montoPagado]) || 0,
+            observaciones: data[i][idx.observaciones] || '',
+            cod1: data[i][idx.cod1] || '',
+            cod2: data[i][idx.cod2] || '',
+            tipoOperacion: tipo
+          }
+        };
+      }
+    }
+    
+    return { success: false, error: 'Egreso no encontrado' };
+    
+  } catch (error) {
+    console.error('❌ Error al obtener egreso:', error);
+    return { success: false, error: error.toString() };
+  }
+}
